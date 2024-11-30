@@ -1,0 +1,5 @@
+prec,4,displaying precision of float numbers,,,,,,,,[digits],
+xRange,-1,"plotting range of x (real value), fixed aspect ratio for equal x and y unit_len, -1 for automatic fitting",,,,,,,,[1],
+lb,-6,k(gain) lowerbound = k0 * 10^lb,,,,,,,,[1],PS. k0 = LD[0]/LN[0]
+ub,6,k(gain) upperbound = k0 * 10^ub,,,,,,,,[1],= the gain such that the highest deg terms have equal coefficient in both GL(s)'s nominator and denominator
+quantity,20000,sampling quantity,,,,,,,,[samples],

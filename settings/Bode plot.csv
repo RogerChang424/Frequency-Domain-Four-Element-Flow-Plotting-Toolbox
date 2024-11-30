@@ -1,0 +1,4 @@
+prec,4,displaying precision of float numbers,,,,,,,,[digits]
+ang_freq,0,"freq. unit: 0 for Hz, 1 for rad/s",,,,,,,,[bool]
+samp_range,4,"log10(sampling range of freq), bilateral",,,,,,,,[log10 scale][selected freq unit]
+quantity,10000,sampling quantity,,,,,,,,[samples]

@@ -1,0 +1,5 @@
+prec,4,displaying precision of float numbers,,,,,,,,[digits]
+ang_freq,1,"freq. unit: 0 for Hz, 1 for rad/s",,,,,,,,[bool]
+samp_radius,60,log10(sampling radius of the semi-circle for s in nyquist plot),,,,,,,,[log10 scale][selected freq unit]
+quantity,10000,sampling quantity,,,,,,,,[samples]
+fit uc,0,"0: scale to fit phase crossover point, 1: scale to fit the unit circle",,,,,,,,[bool]
