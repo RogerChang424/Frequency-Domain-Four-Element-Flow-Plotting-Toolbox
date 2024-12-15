@@ -5,7 +5,10 @@ author: Roger Chang
 
  - What you are you do not see, what you see is your shadow.
 
-# 2024,12,15 update: return nan when phase margin invalid
+# 2024,12,15 update_1: return nan when phase margin invalid
+             update_2: add tf.type() for system type
+             update_3: add tf.sepGainPhase(A) method, providing correct phase
+                         (based on initial phase = type * -180 and phase continuity)
 """
 
 from tqdm import tqdm
@@ -131,6 +134,21 @@ class TF:
         if(phase < 0):
             phase = phase + 2 * np.pi
         return phase
+    
+    def type(self):
+        orig_poles = 0;
+        orig_zeros = 0;
+        for deg in range (self.LD.shape[0]-1, -1):
+            if(LD[deg] == 0):
+                orig_poles += 1
+            else:
+                break
+        for deg in range (self.LN.shape[0]-1, -1):
+            if(LN[deg] == 0):
+                orig_zeros += 1;
+            else:
+                break
+        return orig_poles - orig_zeros
     
     def OLPoles(self, precision):
         OLPs = np.roots(self.LD).astype(complex)
@@ -391,6 +409,27 @@ class TF:
         samps = np.exp(ang_cir) * samp_radius
         A = np.polyval(self.LN, samps)/np.polyval(self.LD, samps)
         return A, samps
+    
+    def sepGainPhase(self, A):
+        # gain
+        gain  = 20 * np.log10(np.absolute(A))
+        # np.angle range: (-pi, pi)
+        # shift with respect to initial angle: type * -90 deg
+        # rad2deg
+        phase = (np.angle(A)) * 180/np.pi
+        init_phase = self.type() * (-90)
+        
+        # move the first phase to estimated initial phase
+        # there are chances to have error, which the angle difference will slightly lower than 360 degs
+        # set threshold to 300 degs
+        if(abs(phase[0] - init_phase) >= 300):
+            phase[0] -= (phase[0] - init_phase)
+        # move all elems following the last elem
+        # assume the phase cannot change by 300 degs within a sample
+        for idxPh in range (1, phase.shape[0]):
+            if(abs(phase[idxPh] - phase[idxPh-1]) >= 300):
+                phase[idxPh] -= (phase[idxPh] - phase[idxPh-1])
+        return gain, phase
     
     """
     Gain marg. and Phase marg.

@@ -4,6 +4,9 @@ Created on Tue Nov 26 19:51:35 2024
 
 @author: Roger Chang
  - What you are you do not see, what you see is your shadow.
+ 
+# 2024,12,15 update_1: phase function correction, update with TransferFunc module
+
 """
 import os
 import numpy as np
@@ -54,14 +57,8 @@ fig = plt.figure(figsize=(12, 9), dpi=300)
 sampling
 """
 
-A, w  = tf.s_posjw(samp_range, nsamps, ang_freq)
-gain  = 20 * np.log10(np.absolute(A))
-# np.angle range: (-pi, pi)
-# shift to : (-2pi, 0) => keep (-pi, 0), -2pi (360 deg) for  (0, pi) 
-phase = (np.angle(A)) * 180/np.pi
-# create subtraction mask
-posphase = (phase > 0) * 360
-phase -= posphase
+A, w        = tf.s_posjw(samp_range, nsamps, ang_freq)
+gain, phase = tf.sepGainPhase(A)
 fig = plt.figure()
 
 
