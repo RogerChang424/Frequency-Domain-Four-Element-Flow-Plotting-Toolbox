@@ -4,6 +4,8 @@ Created on Mon Nov 25 11:19:58 2024
 author: Roger Chang 
 
  - What you are you do not see, what you see is your shadow.
+
+# 2024,12,15 update: return nan when phase margin invalid
 """
 
 from tqdm import tqdm
@@ -518,7 +520,7 @@ class TF:
         wgs = np.unique(wgs)
         if(wgs.shape[0] == 0):
             print("Phase Margin: invalid!")
-            return np.array([])
+            return np.array([np.nan, np.nan])
         
         elif(wgs.shape[0] == 1):
             wg     = wgs[0]
