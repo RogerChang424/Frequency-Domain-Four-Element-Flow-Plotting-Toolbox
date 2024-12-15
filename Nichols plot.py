@@ -5,8 +5,10 @@ Created on Tue Nov 26 19:51:35 2024
 @author: Roger Chang
  - What you are you do not see, what you see is your shadow.
  
-# 2024,12,15 update_1: phase function correction, update with TransferFunc module
-
+# 2024,12,15 (1.0.1)
+             update_1: phase function correction, update with TransferFunc module
+             update_2: non-minimum phase system and invalid PM identification,
+                       determining real PM's from gain cross phases within (-360, 0) degs
 """
 import os
 import numpy as np
@@ -57,8 +59,13 @@ fig = plt.figure(figsize=(12, 9), dpi=300)
 sampling
 """
 
-A, w        = tf.s_posjw(samp_range, nsamps, ang_freq)
-gain, phase = tf.sepGainPhase(A)
+A, w, gain, phase = tf.s_posjw(samp_range, nsamps, ang_freq)
+# since the arrays are reversed, flip them back
+A     = np.flip(A)
+w     = np.flip(w)
+gain  = np.flip(gain)
+phase = np.flip(phase)
+
 fig = plt.figure()
 
 

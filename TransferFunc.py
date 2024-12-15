@@ -5,10 +5,13 @@ author: Roger Chang
 
  - What you are you do not see, what you see is your shadow.
 
-# 2024,12,15 update_1: return nan when phase margin invalid
+# 2024,12,15 (1.0.1)
+             update_1: return nan when phase margin invalid
              update_2: add tf.type() for system type
              update_3: add tf.sepGainPhase(A) method, providing correct phase
-                         (based on initial phase = type * -180 and phase continuity)
+                         (based on initial phase = type * -90 and phase continuity)
+             update_4: non-minimum phase system and invalid PM identification,
+                       determining real PM's from gain cross phases within (-360, 0) degs
 """
 
 from tqdm import tqdm
@@ -138,13 +141,16 @@ class TF:
     def type(self):
         orig_poles = 0;
         orig_zeros = 0;
-        for deg in range (self.LD.shape[0]-1, -1):
-            if(LD[deg] == 0):
+
+        for deg in range (self.LD.shape[0]-1, -1, -1):
+            if(self.LD[deg] == 0.0):
+                #print("deg: " + str(self.LD.shape[0] - 1 - deg) + " : orig pole")
                 orig_poles += 1
             else:
                 break
-        for deg in range (self.LN.shape[0]-1, -1):
-            if(LN[deg] == 0):
+        for deg in range (self.LN.shape[0]-1, -1, -1):
+            if(self.LN[deg] == 0.0):
+                #print("deg: " + str(self.LN.shape[0] - 1 - deg) + " : orig zero")
                 orig_zeros += 1;
             else:
                 break
@@ -360,19 +366,20 @@ class TF:
     def s_posjw(self, samp_radius, nsamps, rads):
         # sampling on -jw axis, in exponential
         # sampling on +jw axis
-        # counter clockwise (+j * inf to j0)
+        # counter clockwise (+j * inf to j0) (reversed sampling)
         power_range = np.log10(samp_radius)
-        power = np.linspace(-power_range, power_range, num = nsamps)
+        power = np.linspace(power_range, -power_range, num = nsamps)
         w     = np.float_power(10, power)
         if(not rads):
             w *= 2 * np.pi
         samps = 1j * w
 
         A = np.polyval(self.LN, samps)/np.polyval(self.LD, samps)
+        gain, phase = self.sepGainPhase(A, True)
         if(not rads):
-            return A, w/(2*np.pi)
+            return A, w/(2*np.pi), gain, phase
         else:
-            return A, w
+            return A, w, gain, phase
     
     def s_negjw(self, samp_radius, nsamps, rads):
         # sampling on -jw axis, in exponential
@@ -410,7 +417,7 @@ class TF:
         A = np.polyval(self.LN, samps)/np.polyval(self.LD, samps)
         return A, samps
     
-    def sepGainPhase(self, A):
+    def sepGainPhase(self, A, reverse):
         # gain
         gain  = 20 * np.log10(np.absolute(A))
         # np.angle range: (-pi, pi)
@@ -418,17 +425,35 @@ class TF:
         # rad2deg
         phase = (np.angle(A)) * 180/np.pi
         init_phase = self.type() * (-90)
-        
+        print(init_phase)
         # move the first phase to estimated initial phase
         # there are chances to have error, which the angle difference will slightly lower than 360 degs
         # set threshold to 300 degs
-        if(abs(phase[0] - init_phase) >= 300):
-            phase[0] -= (phase[0] - init_phase)
-        # move all elems following the last elem
-        # assume the phase cannot change by 300 degs within a sample
-        for idxPh in range (1, phase.shape[0]):
-            if(abs(phase[idxPh] - phase[idxPh-1]) >= 300):
-                phase[idxPh] -= (phase[idxPh] - phase[idxPh-1])
+        # non-reversed sampling: phase(w=min_positive) = phase[0]
+        if(not reverse):
+            if(abs(phase[0] - init_phase) >= 300):
+                shift = round((phase[0] - init_phase)/360, 0) * 360
+                print("shift" + str(shift))
+                phase[0] -= shift
+            # move all elems following the last elem
+            # assume the phase cannot change by 300 degs within a sample
+            for idxPh in range (1, phase.shape[0]):
+                if(abs(phase[idxPh] - phase[idxPh-1]) >= 300):
+                    phase[idxPh] -= round((phase[idxPh] - phase[idxPh-1])/360, 0) * 360
+                    
+        # reversed sampling: phase(w=min_positive) = phase[-1](last elem)                    
+        else:
+            print(abs(phase[-1] - init_phase))
+            if(abs(phase[-1] - init_phase) >= 300):
+                shift = round((phase[-1] - init_phase)/360, 0) * 360
+                print("shift " + str(shift))
+                phase[-1] -= shift
+            print("shifted: " + str(phase[-1]))
+            # move all elems following the last elem
+            # assume the phase cannot change by 300 degs within a sample
+            for idxPh in range (phase.shape[0]-2, -1, -1):
+                if(abs(phase[idxPh] - phase[idxPh+1]) >= 300):
+                    phase[idxPh] -= round((phase[idxPh] - phase[idxPh+1])/360, 0) * 360
         return gain, phase
     
     """
@@ -557,12 +582,32 @@ class TF:
         
         # remove the repeated values
         wgs = np.unique(wgs)
-        if(wgs.shape[0] == 0):
-            print("Phase Margin: invalid!")
+        
+        # check exact phase angle value
+        # sampling: w from 10**-20 to 10**20, 4001 samps (i.e. w[k] = 10**(0.01k-20))
+        w, A, gain, phase = self.s_posjw(200, 4001, True)
+        # hint: s_posjw is sampled in reversed direction
+        w = np.flip(w)
+        A = np.flip(A)
+        gain  = np.flip(gain)
+        phase = np.flip(phase)
+        # search the closest samples of wgs
+        wgs_samp_idx = ((np.round(np.log10(wgs), 2) + 20) * 100).astype(int)
+        wgs_samp = np.take(phase, wgs_samp_idx)
+        # only phase between (-360, 0) degs ones were kept
+        wgs_m180_select = (wgs_samp < 0 and wgs_samp > -360)
+        wgs_m180 = wgs[wgs_m180_select]
+        
+        if(wgs_m180.shape[0] == 0):
+            # no phase crossover
+            if(np.min(gain) > 0):
+                print("Phase Margin: invalid! (no gain crossover)")
+            else:
+                print("Phase Margin: invalid! (non minimum-phase)")                
             return np.array([np.nan, np.nan])
         
-        elif(wgs.shape[0] == 1):
-            wg     = wgs[0]
+        elif(wgs_m180.shape[0] == 1):
+            wg     = wgs_m180[0]
             Nom    = np.polyval(self.LN, 1j * wg)
             Dnom   = np.polyval(self.LD, 1j * wg)
             Phase  = np.angle(Nom/Dnom)
@@ -580,16 +625,17 @@ class TF:
                 return np.array([PM_deg, wg])
         else:
             print("more than one wg's were found!")
-            print(wgs)
-            wg     = wgs[0]
-            Nom    = np.polyval(self.LN, 1j * wg)
-            Dnom   = np.polyval(self.LD, 1j * wg)
+            print(wgs_m180)
+            # return the minimum phase margin
+            Nom    = np.polyval(self.LN, 1j * wgs_m180)
+            Dnom   = np.polyval(self.LD, 1j * wgs_m180)
             Phase  = np.angle(Nom/Dnom)
             # np.angel range: [-pi, pi]
             # convert to [0, 2pi]
             if(Phase < 0):
                 Phase = Phase + 2 * np.pi
-            PM = Phase - np.pi
+            PM = np.min(Phase) - np.pi
+            wg = wgs_m180[np.argmin(Phase)]
             PM_deg = PM/np.pi * 180
             if(not rads):
                 wg /= (2 * np.pi)
