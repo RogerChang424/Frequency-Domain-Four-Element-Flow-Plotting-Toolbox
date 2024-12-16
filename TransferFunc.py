@@ -425,7 +425,7 @@ class TF:
         # rad2deg
         phase = (np.angle(A)) * 180/np.pi
         init_phase = self.type() * (-90)
-        print(init_phase)
+        #print(init_phase)
         # move the first phase to estimated initial phase
         # there are chances to have error, which the angle difference will slightly lower than 360 degs
         # set threshold to 300 degs
@@ -433,7 +433,7 @@ class TF:
         if(not reverse):
             if(abs(phase[0] - init_phase) >= 300):
                 shift = round((phase[0] - init_phase)/360, 0) * 360
-                print("shift" + str(shift))
+                #print("shift" + str(shift))
                 phase[0] -= shift
             # move all elems following the last elem
             # assume the phase cannot change by 300 degs within a sample
@@ -443,12 +443,12 @@ class TF:
                     
         # reversed sampling: phase(w=min_positive) = phase[-1](last elem)                    
         else:
-            print(abs(phase[-1] - init_phase))
+            #print(abs(phase[-1] - init_phase))
             if(abs(phase[-1] - init_phase) >= 300):
                 shift = round((phase[-1] - init_phase)/360, 0) * 360
-                print("shift " + str(shift))
+                #print("shift " + str(shift))
                 phase[-1] -= shift
-            print("shifted: " + str(phase[-1]))
+            #print("shifted: " + str(phase[-1]))
             # move all elems following the last elem
             # assume the phase cannot change by 300 degs within a sample
             for idxPh in range (phase.shape[0]-2, -1, -1):

@@ -9,6 +9,9 @@ Created on Tue Nov 26 19:51:35 2024
              update_1: phase function correction, update with TransferFunc module
              update_2: non-minimum phase system and invalid PM identification,
                        determining real PM's from gain cross phases within (-360, 0) degs
+
+# 2024,12,16 (1.0.2)
+             update_1: sampled range maximum/minimum gain indication
 """
 import os
 import numpy as np
@@ -75,13 +78,22 @@ if(ang_freq):
 else:
     unit = " Hz"
 
+"""
+Maximum/Minimum gain
+"""
+TsF.splittingline(60)
+MaxG = np.max(gain)
+MinG = np.min(gain)
+print("Maximum Gain within samp: " + str(TsF.setdigit(4).format(MaxG)) + " dB")
+print("Minimum Gain within samp: " + str(TsF.setdigit(4).format(MinG)) + " dB")
+TsF.splittingline(60)
 
 """
 gain margin
 """
 GM, wp = tf.gain_margin(dB=True, rads=ang_freq)
 
-TsF.splittingline(60)
+
 print("Gain Margin:              " + str(TsF.setdigit(4).format(GM)) + " dB")
 print("Phase crossover freq:     " + str(TsF.setdigit(4).format(wp)) + unit)
 TsF.splittingline(60)
